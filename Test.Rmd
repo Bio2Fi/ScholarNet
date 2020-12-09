@@ -1,0 +1,44 @@
+---
+title: "Test Network"
+author: "Derek Corcoran"
+date: "12/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(tidyverse)
+library(scholar)
+library(igraph)
+library(ggraph)
+library(tidygraph)
+library(networkD3)
+```
+
+
+Rmd with concept test for scholar network
+
+
+## Network for Brian Maitner, Cory Merow, and Derek Corcoran
+
+```{r, echo = FALSE, out.width= "100%", cache=T}
+Ids <- c("AjOjxAsAAAAJ", "GVb9deIAAAAJ", "dtfZ0wcAAAAJ", "mAbA6EoAAAAJ")
+
+
+coauthor_network <- Ids %>% 
+  purrr::map(get_coauthors) %>% 
+  reduce(bind_rows)
+```
+
+
+```{r, echo = FALSE, out.width= "100%"}
+coauthor_network <- coauthor_network %>% 
+  mutate(coauthors = ifelse(str_detect(coauthors,"Pdf"), "Brian J. Enquist", coauthors), author = ifelse(str_detect(author,"Pdf"), "Brian J. Enquist", author)) %>% dplyr::filter(!str_detect(author, "Sort By"),!str_detect(coauthors, "Sort By"))
+
+#plot_coauthors(coauthor_network, size_labels = 4) + ggtitle("")
+```
+
+```{r}
+p <- simpleNetwork(coauthor_network, height="100px", width="100px")
+p
+```
