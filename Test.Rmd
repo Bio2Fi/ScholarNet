@@ -1,7 +1,6 @@
 ---
 title: "Test Network"
-author: "Derek Corcoran"
-date: "12/9/2020"
+date: "`r Sys.Date()`"
 output: html_document
 ---
 
@@ -13,21 +12,31 @@ library(igraph)
 library(ggraph)
 library(tidygraph)
 library(networkD3)
+library(googlesheets4)
+library(lubridate)
+library(DT)
 ```
 
 
 Rmd with concept test for scholar network
 
 
-## Network for Brian Maitner, Cory Merow, and Derek Corcoran
+## Network for BioFi
+
+This network was generated using the google sheets in the following [link](https://docs.google.com/spreadsheets/d/1jc8QMTADx18r_l_FZqVrGMaoOb3nIqXyYiGaHk1MvvQ/edit?usp=sharing), if you are not there please put yourself in it, try to match your name with the one you have in google scholar (I already fixed Amy's and Brian Enquist's one)
 
 ```{r, echo = FALSE, out.width= "100%", cache=T}
-Ids <- c("AjOjxAsAAAAJ", "GVb9deIAAAAJ", "dtfZ0wcAAAAJ", "mAbA6EoAAAAJ")
+Ids <- read_sheet("https://docs.google.com/spreadsheets/d/1jc8QMTADx18r_l_FZqVrGMaoOb3nIqXyYiGaHk1MvvQ")
 
+saveRDS(Ids, "IDS.rds")
 
-coauthor_network <- Ids %>% 
+Ids2 <- Ids$`User (After user= up to &hl)`
+
+coauthor_network <- Ids2 %>% 
   purrr::map(get_coauthors) %>% 
   reduce(bind_rows)
+
+saveRDS(coauthor_network, "coauthors.rds")
 ```
 
 
@@ -35,10 +44,67 @@ coauthor_network <- Ids %>%
 coauthor_network <- coauthor_network %>% 
   mutate(coauthors = ifelse(str_detect(coauthors,"Pdf"), "Brian J. Enquist", coauthors), author = ifelse(str_detect(author,"Pdf"), "Brian J. Enquist", author)) %>% dplyr::filter(!str_detect(author, "Sort By"),!str_detect(coauthors, "Sort By"))
 
-#plot_coauthors(coauthor_network, size_labels = 4) + ggtitle("")
+Members <- data.frame(author = "BIOFI", coauthors = unique(Ids$Name))
+  
+coauthor_network <- bind_rows(Members, coauthor_network)
+
+
+Nodes <- data.frame(name = unique(Members$coauthors), group = 2, size = 3)
+Nodes_1 <- data.frame(name = "BIOFI", group = 1, size = 5)
+
+Nodes <- bind_rows(Nodes_1, Nodes)
+
+Non_Members <- unique(c(coauthor_network$author, coauthor_network$coauthors))
+Non_Members <- Non_Members[!(Non_Members %in% Nodes$name)]
+
+Nodes_2 <- data.frame(name = Non_Members, group = 3, size = 1)
+
+Nodes <- bind_rows(Nodes, Nodes_2)
+
+Nodes$ID <- 1:nrow(Nodes)
+Nodes$ID <- Nodes$ID -1
+
+ForLinksSource <- Nodes %>% rename(author = name, source = ID, group_source = group) %>% dplyr::select(-size)
+Links <- ForLinksSource %>% right_join(coauthor_network)
+
+ForLinksTarget <- Nodes %>% rename(coauthors = name, target = ID, group_target = group)
+Links <- ForLinksTarget %>% right_join(Links) %>% mutate(value = group_source + group_target) %>% select(source, target, value)
+
+p <- forceNetwork(Links = Links, Nodes = Nodes, Source = "source",
+             Target = "target", Value = "value", NodeID = "name",
+             Group = "group", opacity = 1, zoom = F,
+             charge = -10, legend = T, bounded = T)
 ```
 
 ```{r}
-p <- simpleNetwork(coauthor_network, height="100px", width="100px")
-p
+forceNetwork(Links = Links, Nodes = Nodes, Source = "source",
+             Target = "target", Value = "value", NodeID = "name",
+             Group = "group", opacity = 1, zoom = TRUE,
+             charge = -10, height="100px", width="100px")
 ```
+
+
+## Latest and/or most cited papers
+
+In the following table contains the 20 publications in the last two calendar years that have been most cited in the group
+
+```{r, cache = T}
+
+Year <- Sys.Date() %>% year()
+
+Years <- c(Year, Year-1)
+
+Pubs <- Ids$`User (After user= up to &hl)` %>% 
+  purrr::map(scholar::get_publications)  %>% 
+  reduce(bind_rows)
+
+
+
+Most_Pubs <- Pubs %>% arrange(desc(year), desc(cites)) %>% dplyr::select(-cid, -pubid) %>% dplyr::filter(year %in% Years) %>% mutate(journal = str_to_title(journal)) %>% distinct() %>% slice_max(order_by = cites, n = 20)
+
+DT::datatable(Most_Pubs, options = list(
+  pageLength = 20,
+  lengthMenu = c(20, 10)
+))
+```
+

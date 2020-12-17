@@ -11,6 +11,7 @@ library(igraph)
 library(ggraph)
 library(tidygraph)
 library(networkD3)
+library(googlesheets4)
 ```
 
 
@@ -20,9 +21,9 @@ Rmd with concept test for scholar network
 ## Network for Brian Maitner, Cory Merow, and Derek Corcoran
 
 ```{r, echo = FALSE, out.width= "100%"}
-Ids <- c("AjOjxAsAAAAJ", "GVb9deIAAAAJ", "dtfZ0wcAAAAJ", "mAbA6EoAAAAJ")
+Ids <- read_sheet("https://docs.google.com/spreadsheets/d/1jc8QMTADx18r_l_FZqVrGMaoOb3nIqXyYiGaHk1MvvQ")
 
-
+Ids <- Ids$`User (After user= up to &hl)`
 coauthor_network <- Ids %>% 
   purrr::map(get_coauthors) %>% 
   reduce(bind_rows)
