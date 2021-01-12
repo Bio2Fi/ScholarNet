@@ -1,7 +1,6 @@
 ---
-title: "Test Network"
-date: "`r Sys.Date()`"
-output: html_document
+layout: splash
+permalink: /network/
 ---
 
 ```{r setup, include=FALSE}
