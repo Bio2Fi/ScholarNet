@@ -26,7 +26,9 @@ Rmd with concept test for scholar network
 This network was generated using the google sheets in the following [link](https://docs.google.com/spreadsheets/d/1jc8QMTADx18r_l_FZqVrGMaoOb3nIqXyYiGaHk1MvvQ/edit?usp=sharing), if you are not there please put yourself in it, try to match your name with the one you have in google scholar (I already fixed Amy's and Brian Enquist's one)
 
 ```{r, echo = FALSE, out.width= "100%", cache=T}
-Ids <- read_sheet("https://docs.google.com/spreadsheets/d/1jc8QMTADx18r_l_FZqVrGMaoOb3nIqXyYiGaHk1MvvQ")
+Ids <- read_sheet("https://docs.google.com/spreadsheets/d/1jc8QMTADx18r_l_FZqVrGMaoOb3nIqXyYiGaHk1MvvQ") %>% mutate(last = stringr::word(Name, -1))
+
+Last <- Ids$last
 
 saveRDS(Ids, "IDS.rds")
 
@@ -70,17 +72,21 @@ Links <- ForLinksSource %>% right_join(coauthor_network)
 ForLinksTarget <- Nodes %>% rename(coauthors = name, target = ID, group_target = group)
 Links <- ForLinksTarget %>% right_join(Links) %>% mutate(value = group_source + group_target) %>% select(source, target, value)
 
-p <- forceNetwork(Links = Links, Nodes = Nodes, Source = "source",
-             Target = "target", Value = "value", NodeID = "name",
-             Group = "group", opacity = 1, zoom = F,
-             charge = -10, legend = T, bounded = T)
+#p <- forceNetwork(Links = Links, Nodes = Nodes, Source = "source",
+#             Target = "target", Value = "value", NodeID = "name",
+#             Group = "group", opacity = 1, zoom = F,
+##             charge = -10, legend = T, bounded = T,
+#             fontSize = 12)
 ```
 
 ```{r}
 forceNetwork(Links = Links, Nodes = Nodes, Source = "source",
              Target = "target", Value = "value", NodeID = "name",
              Group = "group", opacity = 1, zoom = TRUE,
-             charge = -10, height="100px", width="100px")
+             charge = -10, height="1000px", width="1000px", fontSize = 12, 
+             bounded = T,
+             Nodesize = "size",
+             radiusCalculation = JS("(d.nodesize)+5"))
 ```
 
 
@@ -96,11 +102,11 @@ Years <- c(Year, Year-1)
 
 Pubs <- Ids$`User (After user= up to &hl)` %>% 
   purrr::map(scholar::get_publications)  %>% 
-  reduce(bind_rows)
+  reduce(bind_rows) %>% mutate(First = str_extract(author, "[^,]+"))
 
+saveRDS(Pubs, "Pubs.rds")
 
-
-Most_Pubs <- Pubs %>% arrange(desc(year), desc(cites)) %>% dplyr::select(-cid, -pubid) %>% dplyr::filter(year %in% Years) %>% mutate(journal = str_to_title(journal)) %>% distinct() %>% slice_max(order_by = cites, n = 20)
+Most_Pubs <- Pubs %>% arrange(desc(year), desc(cites)) %>% dplyr::select(-cid, -pubid) %>% dplyr::filter(year %in% Years, str_detect(First, paste(Last,collapse = "|"))) %>% mutate(journal = str_to_title(journal)) %>% distinct() %>% slice_max(order_by = cites, n = 20)
 
 DT::datatable(Most_Pubs, options = list(
   pageLength = 20,
