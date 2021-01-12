@@ -1,6 +1,7 @@
 ---
-title: "Test for networks of scholar ids"
-output: github_document
+title: "Test Network"
+date: "`r Sys.Date()`"
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
